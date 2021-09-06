@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nahumsa/blockchain/blockchain"
+	"github.com/nahumsa/go-blockchain/blockchain"
 )
 
 func main() {
 	chain := blockchain.InitBlockchain()
 
-	chain.AddBlock("First Block after Genesis")
-	chain.AddBlock("Second Block after Genesis")
-	chain.AddBlock("Third Block after Genesis")
+	chain.AddBlock("1st block")
+	chain.AddBlock("2nd Block")
+	chain.AddBlock("3rd block")
 
 	for _, block := range chain.Blocks {
 
