@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/nahumsa/go-blockchain/blockchain"
@@ -25,4 +26,7 @@ func main() {
 		fmt.Println()
 
 	}
+
+	fmt.Println(reflect.TypeOf(blockchain.ToHex(10)))
+	fmt.Println(blockchain.ToHex(20))
 }
