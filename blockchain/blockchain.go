@@ -6,10 +6,6 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-const (
-	dbPath = "./tmp/blocks"
-)
-
 type BlockChain struct {
 	LastHash []byte
 	Database *badger.DB
@@ -20,7 +16,7 @@ type BlockChainIterator struct {
 	Database    *badger.DB
 }
 
-func InitBlockchain() *BlockChain {
+func InitBlockchain(dbPath string) *BlockChain {
 	var lastHash []byte
 
 	opts := badger.DefaultOptions(dbPath)

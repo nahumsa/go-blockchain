@@ -10,6 +10,10 @@ import (
 	"github.com/nahumsa/go-blockchain/blockchain"
 )
 
+const (
+	dbPath = "./tmp/blocks"
+)
+
 type CommandLine struct {
 	blockchain *blockchain.BlockChain
 }
@@ -86,10 +90,11 @@ func (cli *CommandLine) run() {
 		cli.printChain()
 	}
 }
+
 func main() {
 	defer os.Exit(0)
 
-	chain := blockchain.InitBlockchain()
+	chain := blockchain.InitBlockchain(dbPath)
 	defer chain.Database.Close()
 
 	cli := CommandLine{chain}
