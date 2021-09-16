@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/nahumsa/go-blockchain/wallet"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,7 +93,9 @@ func getBalance(address string) int {
 
 	balance := 0
 
-	UTXOs := chain.FindUTXO(address)
+	pubKeyHash := wallet.Base58Decode([]byte(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	UTXOs := chain.FindUTXO(pubKeyHash)
 
 	for _, out := range UTXOs {
 		balance += out.Value
