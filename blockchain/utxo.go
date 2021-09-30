@@ -3,6 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"log"
 
 	"github.com/dgraph-io/badger/v3"
@@ -47,11 +48,13 @@ func (u UTXOSet) Reindex() {
 }
 
 func (u *UTXOSet) Update(block *Block) {
+
+	fmt.Println("PASS")
 	db := u.Blockchain.Database
 
 	err := db.Update(func(txn *badger.Txn) error {
 		for _, tx := range block.Transactions {
-			if !tx.IsCoinbase() {
+			if tx.IsCoinbase() == false {
 				for _, in := range tx.Inputs {
 					updatedOuts := TxOutputs{}
 					inID := append(utxoPrefix, in.ID...)

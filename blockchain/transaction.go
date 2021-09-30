@@ -43,6 +43,15 @@ func (tx *Transaction) Hash() []byte {
 	return hash[:]
 }
 
+func DeserializeTransaction(data []byte) Transaction {
+	var transaction Transaction
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&transaction)
+	Handle(err)
+	return transaction
+}
+
 func CoinbaseTx(to, data string) *Transaction {
 
 	if data == "" {
@@ -67,15 +76,11 @@ func (tx *Transaction) IsCoinbase() bool {
 		tx.Inputs[0].Out == -1)
 }
 
-func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
+func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
-	wallets, err := wallet.CreateWallets()
-	Handle(err)
-	w := wallets.GetWallet(from)
 	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
-
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount {
@@ -90,8 +95,9 @@ func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 			input := TxInput{txID, out, nil, w.PublicKey}
 			inputs = append(inputs, input)
 		}
-
 	}
+
+	from := fmt.Sprintf("%s", w.Address())
 
 	outputs = append(outputs, *NewTXOutput(amount, to))
 
@@ -101,7 +107,6 @@ func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 
 	tx := Transaction{nil, inputs, outputs}
 	tx.ID = tx.Hash()
-
 	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey)
 
 	return &tx

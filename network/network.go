@@ -14,7 +14,7 @@ import (
 	"syscall"
 
 	"github.com/nahumsa/go-blockchain/blockchain"
-	death "gopkg.in/vrecan/death.v3"
+	death "github.com/vrecan/death/v3"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 
 var (
 	nodeAddress     string
-	minerAddress    string
+	mineAddress     string
 	KnownNodes      = []string{"localhost:3000"}
 	blocksInTransit = [][]byte{}
 	// map[transactionID]Transaction
@@ -131,16 +131,16 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	}
 }
 
-func StartServer(nodeID, minerAddress string) {
+func StartServer(nodeID, mineAddress string) {
 	nodeAddress = fmt.Sprintf("localhost:%s", nodeID)
-	minerAddress = minerAddress
+	mineAddress = mineAddress
 
 	ln, err := net.Listen(protocol, nodeAddress)
 	blockchain.Handle(err)
 
 	defer ln.Close()
 
-	chain := blockchain.ContinueBlockChain(dbPath, nodeID)
+	chain := blockchain.ContinueBlockChain(nodeID)
 	defer chain.Database.Close()
 	go CloseDB(chain)
 
@@ -285,32 +285,11 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	}
 }
 
-func HandleVersion(request []byte, chain *blockchain.BlockChain) {
-	var buff bytes.Buffer
-	var payload Version
-
-	buff.Write(request[commandLenght:])
-	dec := gob.NewDecoder(&buff)
-	err := dec.Decode(&payload)
-	blockchain.Handle(err)
-
-	if chain.GetBestHeight() < payload.BestHeight {
-		SendGetBlocks(payload.AddrFrom)
-	} else if chain.GetBestHeight() > payload.BestHeight {
-		SendVersion(payload.AddrFrom, chain)
-	}
-
-	if !NodeIsKnown(payload.AddrFrom) {
-		KnownNodes = append(KnownNodes, payload.AddrFrom)
-	}
-
-}
-
 func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
 	var payload Tx
 
-	buff.Write(request[commandLength:])
+	buff.Write(request[commandLenght:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
 	if err != nil {
@@ -338,29 +317,21 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 
 func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 	var buff bytes.Buffer
-	var payload Tx
+	var payload Version
 
 	buff.Write(request[commandLenght:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
 	blockchain.Handle(err)
 
-	txData := payload.Transaction
-	tx := blockchain.DeserializeTransactions(txData)
-	memoryPool[hex.EncodeToString(tx.ID)] = tx
+	if chain.GetBestHeight() < payload.BestHeight {
+		SendGetBlocks(payload.AddrFrom)
+	} else if chain.GetBestHeight() > payload.BestHeight {
+		SendVersion(payload.AddrFrom, chain)
+	}
 
-	fmt.Printf("%s, %d\n", nodeAddress, len(memoryPool))
-
-	if nodeAddress == KnownNodes[0] {
-		for _, node := range KnownNodes {
-			if node != nodeAddress && node != payload.AddrFrom {
-				SendInv(node, "tx", [][]byte{tx.ID})
-			}
-		}
-	} else {
-		if len(memoryPool) >= 2 && len(minerAddress) > 0 {
-			MineTx(chain)
-		}
+	if !NodeIsKnown(payload.AddrFrom) {
+		KnownNodes = append(KnownNodes, payload.AddrFrom)
 	}
 
 }
@@ -371,7 +342,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	for id := range memoryPool {
 		fmt.Printf("tx: %s\n", memoryPool[id].ID)
 		tx := memoryPool[id]
-		if chain.VerifyTransacction(&tx) {
+		if chain.VerifyTransaction(&tx) {
 			txs = append(txs, &tx)
 		}
 	}
@@ -381,7 +352,7 @@ func MineTx(chain *blockchain.BlockChain) {
 		return
 	}
 
-	cbTx := blockchain.CoinbaseTx(minerAddress, "")
+	cbTx := blockchain.CoinbaseTx(mineAddress, "")
 	txs = append(txs, cbTx)
 
 	newBlock := chain.MineBlock(txs)
@@ -393,6 +364,12 @@ func MineTx(chain *blockchain.BlockChain) {
 	for _, tx := range txs {
 		txID := hex.EncodeToString(tx.ID)
 		delete(memoryPool, txID)
+	}
+
+	for _, node := range KnownNodes {
+		if node != nodeAddress {
+			SendInv(node, "block", [][]byte{newBlock.Hash})
+		}
 	}
 
 	if len(memoryPool) > 0 {
